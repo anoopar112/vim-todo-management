@@ -1,0 +1,109 @@
+#!/usr/bin/python3
+import argparse
+parser=argparse.ArgumentParser()
+parser.add_argument("-f",help="Path of the todo folder")
+
+args=parser.parse_args()
+
+todo_file=args.f+"/todo.md"
+doing_file=args.f+"/doing.md"
+
+maxlength = 40
+
+def checkPriority(line):
+    line = line.strip()
+    row = ""
+    if "@priority(high)"  in line:
+        row += "${color6}"
+    elif "@priority(medium)" in line:
+        row += "${color7}"
+    elif "@priority(low)" in line:
+        row += "${color4}"
+    return row
+
+
+def parseLine(line):
+    row = ""
+    # replace priority and time texts
+    if "@priority" in line:
+        line = line.replace("@priority(high)","").replace("@priority(medium)","").replace("@priority(low)","")
+    if "@started" in line:
+        st_text_index = line.index("@started")
+        st_index = line.index("(",st_text_index)
+        ed_index = line.index(")",st_index)
+        started_section = line[st_text_index:ed_index+1]
+        timestring = line[st_index:ed_index].split("/")[0].replace("(","")
+        line = line.replace(started_section,"").strip() + " @"+timestring.strip()
+    if "@done" in line:
+        st_text_index = line.index("@done")
+        st_index = line.index("(",st_text_index)
+        ed_index = line.index(")",st_index)
+        timestring = line[st_index:ed_index].split("/")[0].replace("(","")
+        done_section = line[st_text_index:ed_index+1]
+        st_text_index_1 = line.index("@project")
+        st_index_1 = line.index("(",st_text_index_1)
+        ed_index_1 = line.index(")",st_index_1)
+        project_section = line[st_text_index_1:ed_index_1+1]
+        line = line.replace(done_section,"").replace(project_section,"").strip() + " @"+timestring.strip()
+
+    
+    line = line.strip()
+
+    if(len(line) > maxlength):
+        linearry = line.split(" ")
+        newline = ""
+        for l in linearry:
+            if len(newline + l) > maxlength:
+                newline += "\n"
+                row += newline
+                newline = "${offset 15} "+l
+            else:
+                newline += l
+                newline += " "
+        if len(newline) > 0:
+            row += newline.strip()
+    else:
+        row = line.strip()
+    return row
+
+def processLines(lines):
+    row = ""
+    for line in lines:
+        if line.strip().startswith("<!--"):
+            pass
+        elif line.strip().startswith("#"):
+            row +="${voffset 0}${offset 0}"
+            row +="${color9}${font :size=10:bold}"
+            row += parseLine(line.replace("#",""))
+            row += "${font0}"
+        elif line.strip().startswith("✓"):
+            newline = line.replace("✓","")
+            row += "${voffset 0}${offset 2}"
+            row +="${color9}${font3}"
+            row += parseLine(newline.replace("#",""))
+            row += "${font0}"
+        elif line.strip().startswith("☐"):
+            newline = line.replace("☐","")
+            row += "${voffset 0}${offset 2}${color1}"
+            row += checkPriority(newline)
+            row += parseLine(newline)
+        elif line.strip().startswith("»"):
+            newline = line.replace("»","")
+            row += "${voffset 0}${offset 2}${color8}"
+            row += checkPriority(newline)
+            row += parseLine(newline)
+        row += "\n"
+    return row
+
+
+def main():
+    row = ""
+    with open(todo_file) as t_file:
+        lines = t_file.readlines()
+        row += processLines(lines)
+    with open(doing_file) as d_file:
+        lines = d_file.readlines()
+        row += processLines(lines)
+    print("${voffset 0}"+row.strip())
+
+main()

@@ -1,0 +1,154 @@
+#!/usr/bin/python3
+import argparse
+
+parser=argparse.ArgumentParser()
+parser.add_argument("-f",help="Path of the todo folder")
+
+args=parser.parse_args()
+
+all_todo_list = []
+todo_list=[]
+doing_list=[]
+done_list=[]
+
+todo_file=args.f+"/todo.md"
+doing_file=args.f+"/doing.md"
+done_file=args.f+"/done.md"
+
+vim_st_text=""
+
+def check_and_update_all_todolist(task_obj):
+    is_in_list = False
+    if len(all_todo_list) == 0:
+        all_todo_list.append(task_obj)
+        return
+    for todos in all_todo_list:
+        if todos.get("header") == task_obj.get("header"):
+            is_in_list = True
+            todos['tasks'] += task_obj['tasks']
+    if not is_in_list:
+        all_todo_list.append(task_obj)
+    return
+
+
+def processfile(filename):
+    with open(filename) as t_file:
+        lines = t_file.readlines()
+        task_obj = {}
+        for line in lines:
+            if line.strip().startswith("#"):
+                if task_obj != {}:
+                    check_and_update_all_todolist(task_obj)
+                    task_obj = {}
+                task_obj['header'] = line.strip()
+            elif line.strip().startswith("<!--"):
+                # make sure the vim settings line is at the end of file.
+                global vim_st_text
+                vim_st_text = line.strip()
+                if task_obj != {}:
+                    check_and_update_all_todolist(task_obj)
+                    task_obj = {}
+            else:
+                if(task_obj.get('tasks',None)):
+                    task_obj['tasks'].append(line.strip())
+                else:
+                    task_obj['tasks'] = []
+                    task_obj['tasks'].append(line.strip())
+
+processfile(todo_file)
+processfile(doing_file)
+
+def main():
+    for tasks in all_todo_list:
+        task_header = tasks.get('header')
+        todo_tasks = []
+        doing_tasks = []
+        done_tasks = []
+
+        for tsks in tasks.get('tasks'):
+            if tsks.startswith("✓") or tsks.startswith('✘'):
+                done_tasks.append(tsks)
+            elif tsks.startswith("☐"):
+                todo_tasks.append(tsks)
+            else:
+                doing_tasks.append(tsks)
+        todo_task_obj = {
+            "header":task_header,
+            "tasks":todo_tasks
+        }
+        done_task_obj = {
+            "header":task_header,
+            "tasks":done_tasks
+        }
+        doing_tasks_obj = {
+            "header":task_header,
+            "tasks":doing_tasks
+        }
+        if len(todo_tasks) > 0:
+            todo_list.append(todo_task_obj)
+        if len(done_tasks) > 0:
+            done_list.append(done_task_obj)
+        if len(doing_tasks) > 0:
+            doing_list.append(doing_tasks_obj)
+
+        print("="*200)
+        print(all_todo_list)
+        print("#"*200)
+        print(todo_tasks,done_tasks,doing_tasks)
+                
+    if len(todo_list) > 0:
+        with open(todo_file,"wt") as td_file:
+            row = ""
+            for todo in todo_list:
+                row += todo.get('header')
+                row += "\n"
+                for tasks in todo.get('tasks'):
+                    row += "\t"+tasks
+                    row += "\n"
+                row += " \n"
+            row += vim_st_text
+            td_file.write(row)
+    else:
+        with open(todo_file,"wt") as td_file:
+            row = ""
+            row += vim_st_text
+            td_file.write(row)
+
+
+    if len(done_list) > 0:
+        with open(done_file, "at") as dn_file:
+            row = ""
+            for todo in done_list:
+                row += todo.get('header')
+                row += "\n"
+                for tasks in todo.get('tasks'):
+                    row += "\t"+tasks
+                    row += "\n"
+                row += " \n"
+            dn_file.write(row)
+
+    if len(doing_list) > 0:
+        with open(doing_file, "wt") as dg_file:
+            row = ""
+            for todo in doing_list:
+                row += todo.get('header')
+                row += "\n"
+                for tasks in todo.get('tasks'):
+                    row += "\t"+tasks
+                    row += "\n"
+                row += " \n"
+            row += vim_st_text
+            dg_file.write(row)
+    else:
+        with open(doing_file, "wt") as dg_file:
+            row = vim_st_text
+            dg_file.write(row)
+
+
+
+
+     
+    # print(json.dumps(all_todo_list,indent=4))
+
+
+main()
